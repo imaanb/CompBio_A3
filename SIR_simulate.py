@@ -37,8 +37,8 @@ num_macrophages_fixed_param = args.macrophages
 
 # Pre-calculate neighbor_dict
 neighbor_dict = {}
-for r in range(nx_param): # Original i
-    for c in range(ny_param): # Original j
+for r in range(nx_param): 
+    for c in range(ny_param): 
         neighbors = []
         for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
             nr, nc = r + dr, c + dc

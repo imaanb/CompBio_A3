@@ -1,4 +1,3 @@
-# analyze_macrophage_counts.py
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle

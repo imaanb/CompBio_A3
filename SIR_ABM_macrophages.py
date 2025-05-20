@@ -1,4 +1,3 @@
-# simulation_functions.py
 import numpy as np
 from fipy import CellVariable, Grid2D, TransientTerm, DiffusionTerm, ImplicitSourceTerm
 
@@ -9,7 +8,7 @@ def run_simulation_core(
     seed_value,
     neighbor_dict,
     macrophage_params=None, # Dictionary: {'count': int, 'degradation_rate': float} or None
-    return_full_history=False # New parameter
+    return_full_history=False 
 ):
     np.random.seed(seed_value)
 
@@ -27,12 +26,6 @@ def run_simulation_core(
     if macrophage_params and macrophage_params.get('count', 0) > 0 : # Check if count is positive
         actual_num_macrophages = int(macrophage_params['count'])
         degradation_rate = macrophage_params['degradation_rate']
-        # Ensure we don't try to pick more macrophages than available cells
-        # and avoid picking already infected cells if desired (more complex, omitted for simplicity here)
-        pick_count = min(actual_num_macrophages, N_ROWS * N_COLS - num_initial_infected)
-        if pick_count < actual_num_macrophages:
-            print(f"Warning: Reduced macrophage count from {actual_num_macrophages} to {pick_count} due to available spots.")
-            actual_num_macrophages = pick_count
         
         if actual_num_macrophages > 0:
             # Simple random placement, could be on infected cells
@@ -40,7 +33,7 @@ def run_simulation_core(
             for flat_idx in macrophage_flat_indices:
                 r, c = divmod(flat_idx, N_COLS)
                 macrophage_positions.append((r, c))
-        else: # If count was 0 or became 0
+        else: 
             macrophage_params = None # Effectively disable macrophages
 
     mesh = Grid2D(dx=dx, dy=dy, nx=N_COLS, ny=N_ROWS)
@@ -54,7 +47,9 @@ def run_simulation_core(
     history_V_field = []
     history_macrophage_pos = []
 
-    for step_num in range(steps): # Use step_num
+    for step_num in range(steps):
+
+        # Store history for animation purposes
         if return_full_history:
             history_sir_grid.append(sir_grid.copy())
             history_V_field.append(V.value.copy().reshape((N_ROWS, N_COLS))) # Store reshaped
@@ -64,19 +59,19 @@ def run_simulation_core(
         I_counts.append(np.sum(sir_grid == 1))
         R_counts.append(np.sum(sir_grid == 2))
 
-        # --- Virus Emission ---
+        # Virus Emission
         for r in range(N_ROWS):
             for c in range(N_COLS):
                 if sir_grid[r, c] == 1:
                     fipy_idx = c + r * N_COLS
                     V[fipy_idx] += emission_rate * dt
 
-        # --- Virus Diffusion & Decay ---
+        # Virus Diffusion & Decay
         V.updateOld()
         eq.solve(var=V, dt=dt)
         V.setValue(np.maximum(0, V.value))
 
-        # --- Infection & Recovery ---
+        # Infection & Death
         for r in range(N_ROWS):
             for c in range(N_COLS):
                 fipy_idx = c + r * N_COLS
@@ -89,7 +84,7 @@ def run_simulation_core(
                     if np.random.rand() < removal_prob:
                         sir_grid[r, c] = 2
 
-        # --- Macrophage Movement & Degradation ---
+        # Macrophage Movement & Degradation
         if macrophage_params and actual_num_macrophages > 0 and macrophage_positions:
             new_macrophage_positions = []
             for r_macro, c_macro in macrophage_positions:

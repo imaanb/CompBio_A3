@@ -1,13 +1,11 @@
-# analyze_macrophage_counts.py
 import numpy as np
 import matplotlib.pyplot as plt
 import tqdm
 import pickle
-from SIR_ABM_macrophages import run_simulation_core # Import the core function
+from SIR_ABM_macrophages import run_simulation_core 
 
-# Parameters (consistent with original script's intent)
-nx_param = 50 # Original 'nx', represents number of rows for sir_grid
-ny_param = 50 # Original 'ny', represents number of columns for sir_grid
+nx_param = 50 
+ny_param = 50 
 dx = dy = 1.0
 D_v = 1.0
 mu_v = 0.1
@@ -23,10 +21,9 @@ degradation_rate_param = 1.5
 num_initial_infected_param = 15
 
 # Pre-calculate neighbor_dict (keys are (row, col))
-# Using nx_param as rows, ny_param as columns based on original divmod(idx, ny)
 neighbor_dict = {}
-for r in range(nx_param): # Original i
-    for c in range(ny_param): # Original j
+for r in range(nx_param): 
+    for c in range(ny_param): 
         neighbors = []
         for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
             nr, nc = r + dr, c + dc
@@ -39,7 +36,7 @@ macrophages_numbers_to_test = np.linspace(1, 201, 11).astype(int)
 
 score_dict_S_counts = {}
 
-print("Starting simulations...")
+print("Starting simulations")
 for num_macrophages_current_run in macrophages_numbers_to_test:
     score_dict_S_counts[num_macrophages_current_run] = []
     for run_idx in tqdm.tqdm(range(runs), desc=f"Macrophages: {num_macrophages_current_run}"):

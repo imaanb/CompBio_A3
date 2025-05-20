@@ -1,14 +1,10 @@
-# animate_simulation.py
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.animation import FuncAnimation
 import argparse
-
-# Import the core simulation function (make sure simulation_functions.py is in the same directory or Python path)
 from SIR_ABM_macrophages import run_simulation_core
 
-# --- Argument Parsing ---
 parser = argparse.ArgumentParser(description="Run and animate SIR simulation with optional macrophages.")
 parser.add_argument("--macrophages", type=int, default=50, help="Number of macrophages to simulate (0 for none).")
 parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
@@ -19,19 +15,19 @@ parser.add_argument("--fps", type=int, default=10, help="FPS for the saved anima
 
 args = parser.parse_args()
 
-# --- Simulation Parameters (can be further customized or made args) ---
+# Simulation parameters
 N_ROWS_param = 50
 N_COLS_param = 50
 dx_param = dy_param = 1.0
 D_v_param = 1.0
 mu_v_param = 0.1
-dt_param = 1.0 # Time step per simulation step
+dt_param = 1.0  
 
 infection_threshold_param = 0.2
 infection_prob_param = 0.2
 emission_rate_param = 1.0
 removal_prob_param = 0.1
-degradation_rate_param = 1.5 # Used if macrophages > 0
+degradation_rate_param = 1.5 
 
 num_initial_infected_param = 15
 num_macrophages_param = args.macrophages
@@ -58,8 +54,8 @@ if num_macrophages_param > 0:
 else:
     mac_params_for_sim = None
 
-# --- Run Simulation to get history ---
-print("Running simulation to gather history...")
+# Simulate
+print("Running simulation to gather history")
 _S, _I, _R, history_sir, history_V, history_macro_pos = run_simulation_core(
     N_ROWS=N_ROWS_param, N_COLS=N_COLS_param, dx=dx_param, dy=dy_param,
     D_v=D_v_param, mu_v=mu_v_param, dt=dt_param, steps=total_steps_param,
@@ -73,7 +69,8 @@ _S, _I, _R, history_sir, history_V, history_macro_pos = run_simulation_core(
 )
 print("Simulation history gathered.")
 
-# --- Plotting Setup ---
+
+# Animate
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
 cmap_sir = ListedColormap(['lightgreen', 'orangered', 'black'])  # 0=S, 1=I, 2=R
@@ -105,31 +102,25 @@ def update_plot(frame_num):
     virus_data = history_V[frame_num]
     im2.set_data(virus_data)
     ax2.set_title(f"Virus Field, t={current_time:.1f}")
-    # Dynamically adjust colorbar for virus plot if desired, or keep fixed
     current_v_max = np.max(virus_data)
-    im2.set_clim(vmin=0, vmax=max(0.1, current_v_max)) # Ensure vmax is not 0 and at least 0.1
+    im2.set_clim(vmin=0, vmax=max(0.1, current_v_max)) 
 
 
     macro_coords = history_macro_pos[frame_num]
     if macro_coords:
-        ys, xs = zip(*macro_coords) # ys are rows (0th index), xs are cols (1st index)
+        ys, xs = zip(*macro_coords) 
         macrophage_plot.set_data(xs, ys)
     else:
         macrophage_plot.set_data([], [])
 
     return im1, im2, macrophage_plot
 
-# --- Create and Show/Save Animation ---
-# Number of frames is the number of steps in history
+#
 num_frames = len(history_sir)
-if num_frames == 0:
-    print("No history data to animate. Exiting.")
-    exit()
 
-print(f"Creating animation with {num_frames} frames...")
-# interval is milliseconds per frame: 1000 / fps
+print(f"Creating animation with {num_frames} frames")
 ani = FuncAnimation(fig, update_plot, frames=num_frames,
-                    interval=1000/args.fps, blit=False, repeat=False) # blit=True can be faster but more complex with titles
+                    interval=1000/args.fps, blit=False, repeat=False) 
 
 if args.save_anim:
     print(f"Saving animation to {args.anim_file} (this may take a while)...")
