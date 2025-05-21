@@ -27,7 +27,7 @@ for j in range(2):
 
     ax[j].plot(time_axis, np.mean(sir_results_all_runs[j]["S"], axis=0), label="Susceptible (Mean)", color="green", linewidth=2)
     ax[j].plot(time_axis, np.mean(sir_results_all_runs[j]["I"], axis=0), label="Infected (Mean)", color="red", linewidth=2)
-    ax[j].plot(time_axis, np.mean(sir_results_all_runs[j]["R"], axis=0), label="Recovered (Mean)", color="black", linewidth=2)
+    ax[j].plot(time_axis, np.mean(sir_results_all_runs[j]["R"], axis=0), label="Removed (Mean)", color="black", linewidth=2)
 
 plt.legend()
 ax[0].set_title('SIR with no macrophages')
