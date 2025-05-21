@@ -1,6 +1,6 @@
 import tqdm
 import pickle
-from SIR_ABM_macrophages import run_simulation_core # Import the core function
+from SIR_ABM_macrophages import run_simulation_core 
 import argparse
 
 nx_param = 50 
