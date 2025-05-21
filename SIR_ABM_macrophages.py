@@ -4,37 +4,37 @@ from numba import njit, types
 import numba.typed
 
 @njit
-def _numba_virus_emission(sir_grid, V_array, emission_rate, dt, N_ROWS, N_COLS):
-    for r in range(N_ROWS):
-        for c in range(N_COLS):
+def virus_emission(sir_grid, V_array, f_ij, dt, nx, ny):
+    for r in range(nx):
+        for c in range(ny):
             if sir_grid[r, c] == 1:
-                fipy_idx = c + r * N_COLS
-                V_array[fipy_idx] += emission_rate * dt
+                index = c + r * ny
+                V_array[index] += f_ij * dt
 
 @njit
-def _numba_enforce_non_negative(V_array):
+def enforce_non_negative(V_array):
     for i in range(V_array.shape[0]):
         if V_array[i] < 0:
             V_array[i] = 0.0
 
 @njit
-def _numba_infection_death(sir_grid, V_array, infection_threshold, infection_prob, removal_prob, N_ROWS, N_COLS):
-    for r in range(N_ROWS):
-        for c in range(N_COLS):
-            fipy_idx = c + r * N_COLS
-            current_virus_level = V_array[fipy_idx]
+def infection_death(sir_grid, V_array, I_T, P_I, P_R, nx, ny):
+    for r in range(nx):
+        for c in range(ny):
+            index = c + r * ny
+            current_virus_level = V_array[index]
 
-            if sir_grid[r, c] == 0 and current_virus_level > infection_threshold:
-                if np.random.rand() < infection_prob:
+            if sir_grid[r, c] == 0 and current_virus_level > I_T:
+                if np.random.rand() < P_I:
                     sir_grid[r, c] = 1
             elif sir_grid[r, c] == 1:
-                if np.random.rand() < removal_prob:
+                if np.random.rand() < P_R:
                     sir_grid[r, c] = 2
 
 @njit
-def _numba_macrophage_update(
+def macrophage_update(
     current_macrophage_positions_typed, V_array, typed_neighbor_dict,
-    degradation_rate, dt, N_ROWS, N_COLS
+    delta_MV, dt, nx, ny
 ):
     _dummy_int64_tuple = (np.int64(0), np.int64(0)) 
 
@@ -48,37 +48,32 @@ def _numba_macrophage_update(
 
     for r_macro, c_macro in current_macrophage_positions_typed:
         best_r, best_c = r_macro, c_macro
-        fipy_idx_current = c_macro + r_macro * N_COLS
-        max_val = V_array[fipy_idx_current]
+        current_index = c_macro + r_macro * ny
+        max_val = V_array[current_index]
 
         neighbors = typed_neighbor_dict.get((r_macro, c_macro), default_empty_neighbor_list)
         for nr, nc in neighbors:
-            fipy_idx_neighbor = nc + nr * N_COLS
-            if V_array[fipy_idx_neighbor] > max_val:
+            index_neighbor = nc + nr * ny
+            if V_array[index_neighbor] > max_val:
                 best_r, best_c = nr, nc
-                max_val = V_array[fipy_idx_neighbor]
+                max_val = V_array[index_neighbor]
         
-        fipy_idx_degrade = best_c + best_r * N_COLS
-        V_array[fipy_idx_degrade] = max(V_array[fipy_idx_degrade] - degradation_rate * dt, 0.0)
+        index_degrade = best_c + best_r * ny
+        V_array[index_degrade] = max(V_array[index_degrade] - delta_MV * dt, 0.0)
         new_macrophage_positions_typed.append((best_r, best_c))
     return new_macrophage_positions_typed
 
 def run_simulation_core(
-    N_ROWS, N_COLS, dx, dy, D_v, mu_v, dt, steps,
-    infection_threshold, infection_prob, emission_rate, removal_prob,
-    num_initial_infected,
-    seed_value,
-    neighbor_dict,
-    macrophage_params=None,
-    return_full_history=False
+    nx, ny, dx, dy, D_v, mu_v, dt, steps, I_T, P_I, f_ij, P_R, I_0, seed_value, neighbor_dict,
+    macrophage_params=None, return_full_history=False
 ):
     np.random.seed(seed_value)
     _ = np.random.rand()    
-    sir_grid = np.full((N_ROWS, N_COLS), 0)
+    sir_grid = np.full((nx, ny), 0)
 
-    infected_flat_indices = np.random.choice(N_ROWS * N_COLS, size=num_initial_infected, replace=False)
+    infected_flat_indices = np.random.choice(nx * ny, size=I_0, replace=False)
     for flat_idx in infected_flat_indices:
-        r, c = divmod(flat_idx, N_COLS)
+        r, c = divmod(flat_idx, ny)
         sir_grid[r, c] = 1
 
     macrophage_positions_typed = numba.typed.List.empty_list(types.UniTuple(types.int64, 2))
@@ -86,7 +81,7 @@ def run_simulation_core(
         key_type=types.UniTuple(types.int64, 2),
         value_type=types.ListType(types.UniTuple(types.int64, 2))
     )
-    degradation_rate = 0.0
+    delta_MV = 0.0
     actual_num_macrophages = 0
     
     active_macrophages = False
@@ -94,12 +89,12 @@ def run_simulation_core(
         actual_num_macrophages = int(macrophage_params['count'])
         if actual_num_macrophages > 0:
             active_macrophages = True
-            degradation_rate = macrophage_params['degradation_rate']
+            delta_MV = macrophage_params['degradation_rate']
             
-            macrophage_flat_indices = np.random.choice(N_ROWS * N_COLS, size=actual_num_macrophages, replace=False)
+            macrophage_flat_indices = np.random.choice(nx * ny, size=actual_num_macrophages, replace=False)
             temp_py_list_mac_pos = []
             for flat_idx in macrophage_flat_indices:
-                r, c = divmod(flat_idx, N_COLS)
+                r, c = divmod(flat_idx, ny)
                 temp_py_list_mac_pos.append((r,c))
             for r_val, c_val in temp_py_list_mac_pos:
                 macrophage_positions_typed.append((r_val, c_val))
@@ -115,7 +110,7 @@ def run_simulation_core(
         macrophage_params = None
 
 
-    mesh = Grid2D(dx=dx, dy=dy, nx=N_COLS, ny=N_ROWS)
+    mesh = Grid2D(dx=dx, dy=dy, nx=nx, ny=ny)
     V = CellVariable(name="virus", mesh=mesh, value=0.0, hasOld=True)
     eq = TransientTerm() == DiffusionTerm(D_v) - ImplicitSourceTerm(mu_v)
 
@@ -131,7 +126,7 @@ def run_simulation_core(
 
         if return_full_history:
             history_sir_grid.append(sir_grid.copy())
-            history_V_field.append(V_numpy_array.copy().reshape((N_ROWS, N_COLS)))
+            history_V_field.append(V_numpy_array.copy().reshape((nx, ny)))
             if active_macrophages:
                 py_list_for_hist = []
                 for i in range(len(macrophage_positions_typed)):
@@ -145,235 +140,21 @@ def run_simulation_core(
         I_counts.append(np.sum(sir_grid == 1))
         R_counts.append(np.sum(sir_grid == 2))
 
-        _numba_virus_emission(sir_grid, V_numpy_array, emission_rate, dt, N_ROWS, N_COLS)
+        virus_emission(sir_grid, V_numpy_array, f_ij, dt, nx, ny)
 
         V.updateOld()
         eq.solve(var=V, dt=dt)
-        _numba_enforce_non_negative(V_numpy_array)
+        enforce_non_negative(V_numpy_array)
 
-        _numba_infection_death(sir_grid, V_numpy_array, infection_threshold, infection_prob, removal_prob, N_ROWS, N_COLS)
+        infection_death(sir_grid, V_numpy_array, I_T, P_I, P_R, nx, ny)
 
         if active_macrophages and len(macrophage_positions_typed) > 0:
-            macrophage_positions_typed = _numba_macrophage_update(
+            macrophage_positions_typed = macrophage_update(
                 macrophage_positions_typed, V_numpy_array, typed_neighbor_dict,
-                degradation_rate, dt, N_ROWS, N_COLS
+                delta_MV, dt, nx, ny
             )
             
     if return_full_history:
         return S_counts, I_counts, R_counts, history_sir_grid, history_V_field, history_macrophage_pos
     else:
         return S_counts, I_counts, R_counts
-
-
-
-
-
-
-
-
-
-##import numpy as np
-##from fipy import CellVariable, Grid2D, TransientTerm, DiffusionTerm, ImplicitSourceTerm
-##
-##def run_simulation_core(
-##    N_ROWS, N_COLS, dx, dy, D_v, mu_v, dt, steps,
-##    infection_threshold, infection_prob, emission_rate, removal_prob,
-##    num_initial_infected,
-##    seed_value,
-##    neighbor_dict,
-##    macrophage_params=None, # Dictionary: {'count': int, 'degradation_rate': float} or None
-##    return_full_history=False 
-##):
-##    np.random.seed(seed_value)
-##
-##    sir_grid = np.full((N_ROWS, N_COLS), 0) # 0=S, 1=I, 2=R
-##
-##    infected_flat_indices = np.random.choice(N_ROWS * N_COLS, size=num_initial_infected, replace=False)
-##    for flat_idx in infected_flat_indices:
-##        r, c = divmod(flat_idx, N_COLS)
-##        sir_grid[r, c] = 1
-##
-##    macrophage_positions = []
-##    degradation_rate = 0.0
-##    actual_num_macrophages = 0
-##
-##    if macrophage_params and macrophage_params.get('count', 0) > 0 : # Check if count is positive
-##        actual_num_macrophages = int(macrophage_params['count'])
-##        degradation_rate = macrophage_params['degradation_rate']
-##        
-##        if actual_num_macrophages > 0:
-##            # Simple random placement, could be on infected cells
-##            macrophage_flat_indices = np.random.choice(N_ROWS * N_COLS, size=actual_num_macrophages, replace=False)
-##            for flat_idx in macrophage_flat_indices:
-##                r, c = divmod(flat_idx, N_COLS)
-##                macrophage_positions.append((r, c))
-##        else: 
-##            macrophage_params = None # Effectively disable macrophages
-##
-##    mesh = Grid2D(dx=dx, dy=dy, nx=N_COLS, ny=N_ROWS)
-##    V = CellVariable(name="virus", mesh=mesh, value=0.0, hasOld=True)
-##    eq = TransientTerm() == DiffusionTerm(D_v) - ImplicitSourceTerm(mu_v)
-##
-##    S_counts, I_counts, R_counts = [], [], []
-##    
-##    # For storing history if requested
-##    history_sir_grid = []
-##    history_V_field = []
-##    history_macrophage_pos = []
-##
-##    for step_num in range(steps):
-##
-##        # Store history for animation purposes
-##        if return_full_history:
-##            history_sir_grid.append(sir_grid.copy())
-##            history_V_field.append(V.value.copy().reshape((N_ROWS, N_COLS))) # Store reshaped
-##            history_macrophage_pos.append(list(macrophage_positions)) # Copy list of tuples
-##
-##        S_counts.append(np.sum(sir_grid == 0))
-##        I_counts.append(np.sum(sir_grid == 1))
-##        R_counts.append(np.sum(sir_grid == 2))
-##
-##        # Virus Emission
-##        for r in range(N_ROWS):
-##            for c in range(N_COLS):
-##                if sir_grid[r, c] == 1:
-##                    fipy_idx = c + r * N_COLS
-##                    V[fipy_idx] += emission_rate * dt
-##
-##        # Virus Diffusion & Decay
-##        V.updateOld()
-##        eq.solve(var=V, dt=dt)
-##        V.setValue(np.maximum(0, V.value))
-##
-##        # Infection & Death
-##        for r in range(N_ROWS):
-##            for c in range(N_COLS):
-##                fipy_idx = c + r * N_COLS
-##                current_virus_level = V[fipy_idx]
-##
-##                if sir_grid[r, c] == 0 and current_virus_level > infection_threshold:
-##                    if np.random.rand() < infection_prob:
-##                        sir_grid[r, c] = 1
-##                elif sir_grid[r, c] == 1:
-##                    if np.random.rand() < removal_prob:
-##                        sir_grid[r, c] = 2
-##
-##        # Macrophage Movement & Degradation
-##        if macrophage_params and actual_num_macrophages > 0 and macrophage_positions:
-##            new_macrophage_positions = []
-##            for r_macro, c_macro in macrophage_positions:
-##                best_r, best_c = r_macro, c_macro
-##                fipy_idx_current = c_macro + r_macro * N_COLS
-##                max_val = V[fipy_idx_current]
-##
-##                for nr, nc in neighbor_dict.get((r_macro, c_macro), []): # Use .get for safety
-##                    fipy_idx_neighbor = nc + nr * N_COLS
-##                    if V[fipy_idx_neighbor] > max_val:
-##                        best_r, best_c = nr, nc
-##                        max_val = V[fipy_idx_neighbor]
-##                
-##                fipy_idx_degrade = best_c + best_r * N_COLS
-##                V[fipy_idx_degrade] = max(V[fipy_idx_degrade] - degradation_rate * dt, 0.0)
-##                new_macrophage_positions.append((best_r, best_c))
-##            macrophage_positions = new_macrophage_positions
-##            
-##    if return_full_history:
-##        return S_counts, I_counts, R_counts, history_sir_grid, history_V_field, history_macrophage_pos
-##    else:
-##        return S_counts, I_counts, R_counts
-##
-
-
-
-
-
-
-#
-#
-#
-#
-#
-#import numpy as np
-#from fipy import CellVariable, Grid2D, TransientTerm, DiffusionTerm, ImplicitSourceTerm
-#
-#def run_simulation_core(
-#    N_ROWS, N_COLS, dx, dy, D_v, mu_v, dt, steps,
-#    infection_threshold, infection_prob, emission_rate, removal_prob,
-#    num_initial_infected,
-#    seed_value,
-#    neighbor_dict,
-#    macrophage_params=None # Dictionary: {'count': int, 'degradation_rate': float} or None
-#):
-#    np.random.seed(seed_value)
-#
-#    sir_grid = np.full((N_ROWS, N_COLS), 0) # 0=S, 1=I, 2=R
-#
-#    infected_flat_indices = np.random.choice(N_ROWS * N_COLS, size=num_initial_infected, replace=False)
-#    for flat_idx in infected_flat_indices:
-#        r, c = divmod(flat_idx, N_COLS)
-#        sir_grid[r, c] = 1
-#
-#    macrophage_positions = []
-#    degradation_rate = 0.0
-#    actual_num_macrophages = 0
-#
-#    if macrophage_params:
-#        actual_num_macrophages = macrophage_params['count']
-#        degradation_rate = macrophage_params['degradation_rate']
-#        macrophage_flat_indices = np.random.choice(N_ROWS * N_COLS, size=int(actual_num_macrophages), replace=False)
-#        for flat_idx in macrophage_flat_indices:
-#            r, c = divmod(flat_idx, N_COLS)
-#            macrophage_positions.append((r, c))
-#
-#    mesh = Grid2D(dx=dx, dy=dy, nx=N_COLS, ny=N_ROWS)
-#    V = CellVariable(name="virus", mesh=mesh, value=0.0, hasOld=True)
-#    eq = TransientTerm() == DiffusionTerm(D_v) - ImplicitSourceTerm(mu_v)
-#
-#    S_counts, I_counts, R_counts = [], [], []
-#
-#    for _ in range(steps):
-#        S_counts.append(np.sum(sir_grid == 0))
-#        I_counts.append(np.sum(sir_grid == 1))
-#        R_counts.append(np.sum(sir_grid == 2))
-#
-#        for r in range(N_ROWS):
-#            for c in range(N_COLS):
-#                if sir_grid[r, c] == 1:
-#                    fipy_idx = c + r * N_COLS
-#                    V[fipy_idx] += emission_rate * dt
-#
-#        V.updateOld()
-#        eq.solve(var=V, dt=dt)
-#        V.setValue(np.maximum(0, V.value)) # Ensures V >= 0
-#
-#        for r in range(N_ROWS):
-#            for c in range(N_COLS):
-#                fipy_idx = c + r * N_COLS
-#                current_virus_level = V[fipy_idx]
-#
-#                if sir_grid[r, c] == 0 and current_virus_level > infection_threshold:
-#                    if np.random.rand() < infection_prob:
-#                        sir_grid[r, c] = 1
-#                elif sir_grid[r, c] == 1:
-#                    if np.random.rand() < removal_prob:
-#                        sir_grid[r, c] = 2
-#
-#        if macrophage_params and actual_num_macrophages > 0:
-#            new_macrophage_positions = []
-#            for r_macro, c_macro in macrophage_positions:
-#                best_r, best_c = r_macro, c_macro
-#                fipy_idx_current = c_macro + r_macro * N_COLS
-#                max_val = V[fipy_idx_current]
-#
-#                for nr, nc in neighbor_dict[(r_macro, c_macro)]:
-#                    fipy_idx_neighbor = nc + nr * N_COLS
-#                    if V[fipy_idx_neighbor] > max_val:
-#                        best_r, best_c = nr, nc
-#                        max_val = V[fipy_idx_neighbor]
-#
-#                fipy_idx_degrade = best_c + best_r * N_COLS
-#                V[fipy_idx_degrade] = max(V[fipy_idx_degrade] - degradation_rate * dt, 0.0)
-#                new_macrophage_positions.append((best_r, best_c))
-#            macrophage_positions = new_macrophage_positions
-#
-#    return S_counts, I_counts, R_counts

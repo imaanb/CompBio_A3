@@ -48,10 +48,10 @@ for num_macrophages_current_run in macrophages_numbers_to_test:
          }
 
          S_series, _I_series, _R_series = run_simulation_core(
-             N_ROWS=nx_param, N_COLS=ny_param, dx=dx, dy=dy, D_v=D_v, mu_v=mu_v, dt=dt, steps=steps,
-             infection_threshold=infection_threshold, infection_prob=infection_prob,
-             emission_rate=emission_rate, removal_prob=removal_prob,
-             num_initial_infected=num_initial_infected_param,
+             nx=nx_param, ny=ny_param, dx=dx, dy=dy, D_v=D_v, mu_v=mu_v, dt=dt, steps=steps,
+             I_T=infection_threshold, P_I=infection_prob,
+             f_ij=emission_rate, P_R=removal_prob,
+             I_0=num_initial_infected_param,
              seed_value=current_seed,
              neighbor_dict=neighbor_dict,
              macrophage_params=mac_params

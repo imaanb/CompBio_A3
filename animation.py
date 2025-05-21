@@ -16,57 +16,49 @@ parser.add_argument("--fps", type=int, default=10, help="FPS for the saved anima
 args = parser.parse_args()
 
 # Simulation parameters
-N_ROWS_param = 50
-N_COLS_param = 50
-dx_param = dy_param = 1.0
-D_v_param = 1.0
-mu_v_param = 0.1
-dt_param = 1.0  
+nx = 50
+ny = 50
+dx = 1
+dy = 1
+D_v = 1
+mu_v = 0.1
+dt = 1 
 
-infection_threshold_param = 0.2
-infection_prob_param = 0.2
-emission_rate_param = 1.0
-removal_prob_param = 0.1
-degradation_rate_param = 1.5 
+I_T = 0.2
+P_I = 0.2
+f_ij = 1.0
+P_R = 0.1
+delta_MV = 1.5 
 
-num_initial_infected_param = 15
-num_macrophages_param = args.macrophages
-current_seed_param = args.seed
-total_steps_param = args.steps
+I_0 = 15
+num_macrophages = args.macrophages
+current_seed = args.seed
+total_steps = args.steps
 
 # Pre-calculate neighbor_dict
 neighbor_dict = {}
-for r in range(N_ROWS_param):
-    for c in range(N_COLS_param):
+for r in range(nx):
+    for c in range(ny):
         neighbors = []
         for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
             nr, nc = r + dr, c + dc
-            if 0 <= nr < N_ROWS_param and 0 <= nc < N_COLS_param:
+            if 0 <= nr < nx and 0 <= nc < ny:
                 neighbors.append((nr, nc))
         neighbor_dict[(r, c)] = neighbors
 
 # Setup macrophage parameters for the simulation function
-if num_macrophages_param > 0:
+if num_macrophages > 0:
     mac_params_for_sim = {
-        'count': num_macrophages_param,
-        'degradation_rate': degradation_rate_param
+        'count': num_macrophages,
+        'degradation_rate': delta_MV
     }
 else:
     mac_params_for_sim = None
 
 # Simulate
 print("Running simulation to gather history")
-_S, _I, _R, history_sir, history_V, history_macro_pos = run_simulation_core(
-    N_ROWS=N_ROWS_param, N_COLS=N_COLS_param, dx=dx_param, dy=dy_param,
-    D_v=D_v_param, mu_v=mu_v_param, dt=dt_param, steps=total_steps_param,
-    infection_threshold=infection_threshold_param, infection_prob=infection_prob_param,
-    emission_rate=emission_rate_param, removal_prob=removal_prob_param,
-    num_initial_infected=num_initial_infected_param,
-    seed_value=current_seed_param,
-    neighbor_dict=neighbor_dict,
-    macrophage_params=mac_params_for_sim,
-    return_full_history=True
-)
+_S, _I, _R, history_sir, history_V, history_macro_pos = run_simulation_core(nx, ny, dx, dy, D_v, mu_v, dt, total_steps, I_T, P_I, f_ij, P_R, I_0, current_seed, neighbor_dict, mac_params_for_sim,return_full_history=True)
+
 print("Simulation history gathered.")
 
 
@@ -94,7 +86,7 @@ macrophage_plot, = ax1.plot([], [], 'wo', markersize=5, markeredgecolor='black')
 
 # --- Animation Function ---
 def update_plot(frame_num):
-    current_time = frame_num * dt_param
+    current_time = frame_num * dt
 
     im1.set_data(history_sir[frame_num])
     ax1.set_title(f"ABM, t={current_time:.1f}")
