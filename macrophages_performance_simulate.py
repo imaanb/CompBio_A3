@@ -1,3 +1,13 @@
+"""
+Course: Computational Biology
+Names: Lisa Pijpers, Petr Chalupský and Imaan Bijl
+Student IDs: 15746704, 15719227 and 15395812
+
+File description:
+    This file simulates the hybrid ABM-PDE model for multiple amounts of macrophages and
+    saves the data.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import tqdm

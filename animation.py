@@ -1,3 +1,13 @@
+"""
+Course: Computational Biology
+Names: Lisa Pijpers, Petr Chalupský and Imaan Bijl
+Student IDs: 15746704, 15719227 and 15395812
+
+File description:
+    This file uses the data to make an animation of the virus concentration field and the grid
+    containing the states (S, I, R) and the macrophages.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap

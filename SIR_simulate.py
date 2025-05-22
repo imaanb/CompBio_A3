@@ -1,3 +1,12 @@
+"""
+Course: Computational Biology
+Names: Lisa Pijpers, Petr Chalupský and Imaan Bijl
+Student IDs: 15746704, 15719227 and 15395812
+
+File description:
+    This file lets the user select the number of macrophages to simulate the model. The data is saved.
+"""
+
 import tqdm
 import pickle
 from SIR_ABM_macrophages import run_simulation_core 

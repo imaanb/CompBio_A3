@@ -1,3 +1,14 @@
+"""
+Course: Computational Biology
+Names: Lisa Pijpers, Petr Chalupský and Imaan Bijl
+Student IDs: 15746704, 15719227 and 15395812
+
+File description:
+    This file uses the data to make a plot containing the number of cells (S, I, R) over time
+    displaying the mean and the individual runs (shaded). The model without macrophages and the
+    model with 50 macrophages are compared.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle

@@ -1,3 +1,13 @@
+"""
+Course: Computational Biology
+Names: Lisa Pijpers, Petr Chalupský and Imaan Bijl
+Student IDs: 15746704, 15719227 and 15395812
+
+File description:
+    This file uses the data to make a plot comparing the number of susceptible cells over time
+    for different amounts of macrophages.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
