@@ -19,7 +19,7 @@ def _numba_virus_emission(sir_grid, V_array, emission_rate, dt, N_ROWS, N_COLS):
     Function to update the virus concentration in the grid based on the infected cells.
 
     Args:
-        sir_grid (array): 2D array representing the SIR grid.
+        sir_grid (array): 2D array representing the SIR grid (S=0, I=1, R=2).
         V_array (array): 1D array representing the virus concentration.
         emission_rate (float): Rate of virus emission from infected cells.
         dt (float): Time step for the simulation.
@@ -50,7 +50,7 @@ def _numba_infection_death(sir_grid, V_array, infection_threshold, infection_pro
     Function to update the SIR grid based on the virus concentration and infection parameters.
     
     Args:
-        sir_grid (array): 2D array representing the SIR grid.
+        sir_grid (array): 2D array representing the SIR grid (S=0, I=1, R=2).
         V_array (array): 1D array representing the virus concentration.
         infection_threshold (float): Virus concentration threshold for infection.
         infection_prob (float): Probability of infection.
